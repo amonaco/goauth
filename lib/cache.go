@@ -3,7 +3,7 @@ package cache
 import (
 	"github.com/gomodule/redigo/redis"
 
-	"bitbucket.org/amonaco/kujira/libs/config"
+	"github.com/amonaco/goauth/lib/config"
 )
 
 var pool *redis.Pool
