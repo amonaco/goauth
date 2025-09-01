@@ -1,4 +1,4 @@
-package auth
+package session
 
 import (
 	"crypto/rand"
@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/amonaco/goauth/libs/cache"
+	"github.com/amonaco/goauth/lib/cache"
 )
 
 const sessionTTL = 86400

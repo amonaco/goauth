@@ -2,27 +2,34 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
-	"github.com/go-chi/chi"
-    "github.com/amonaco/goauth/lib"
+	"github.com/amonaco/goauth/lib/config"
+	"github.com/amonaco/goauth/lib/middleware"
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
 
-	r := chi.NewRouter()
+	config.Read("config/config.yml")
+	conf := config.Get()
+
+	router := chi.NewRouter()
+
+	// Redis
+	// cache.Start()
+
 	// r.Use(middleware.Logger)
 	// r.Use(middleware.Recoverer)
 
-	r.Get("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-
-		// Auth middleware here
-		r.Use(auth.Middleware)
-		// TODO: See of passing arguments to the middleware here (like access object)
+	router.Get("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
+		router.Use(auth.Middleware)
 		w.Write([]byte("OK"))
 	})
 
-
-	http.ListenAndServe(":3000", r)
+	log.Printf("Environment: %v", conf.Environment)
+	log.Printf("Listening on %v", conf.Listen)
+	log.Fatal(http.ListenAndServe(conf.Listen, router))
 
 }

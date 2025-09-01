@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log"
+
+    "github.com/amonaco/goauth/lib/session"
 )
 
 const TokenCookieName = "goauth_session"
@@ -69,7 +71,7 @@ func IsSuperAdmin(ctx context.Context) bool {
 	return false
 }
 
-func getSessionFromContext(ctx context.Context) (Session, bool) {
-	session, ok := ctx.Value(ContextKey("session")).(Session)
+func getSessionFromContext(ctx context.Context) (session.Session, bool) {
+	session, ok := ctx.Value("session").(session.Session)
 	return session, ok
 }

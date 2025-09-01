@@ -3,7 +3,7 @@ package cache
 import (
 	"github.com/gomodule/redigo/redis"
 
-	"github.com/amonaco/goauth/libs/config"
+	"github.com/amonaco/goauth/lib/config"
 )
 
 var pool *redis.Pool
@@ -13,13 +13,13 @@ func Start() {
 	conf := config.Get()
 
 	pool = redis.NewPool(func() (redis.Conn, error) {
-		c, err := redis.DialURL(conf.Redis.Address)
+		c, err := redis.DialURL(conf.Redis)
 		if err != nil {
 			return nil, err
 		}
 
 		return c, err
-	}, conf.Redis.MaxConn)
+	}, conf.RedisMaxConn)
 }
 
 // Close closes the connections to redis

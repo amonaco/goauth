@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+
+    "github.com/amonaco/goauth/lib/auth"
+    "github.com/amonaco/goauth/lib/session"
 )
 
 // Main middleware function
@@ -13,7 +16,7 @@ func Middleware(next http.Handler) http.Handler {
 		var token string
 
 		// Try cookie auth first
-		cookie, err := r.Cookie(TokenCookieName)
+		cookie, err := r.Cookie(auth.TokenCookieName)
 		if err != nil {
 			log.Println("Session cookie not present! Fallback to auth-token")
 
@@ -28,14 +31,14 @@ func Middleware(next http.Handler) http.Handler {
 		}
 
 		// Check session token exists
-		session, err := GetSession(token)
+		sess, err := session.GetSession(token)
 		if err != nil {
 			log.Println(err)
 			http.Error(w, http.StatusText(401), 401)
 			return
 		}
 
-		ctx = context.WithValue(ctx, ContextKey("session"), session)
+		ctx = context.WithValue(ctx, session.ContextKey("session"), sess)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
