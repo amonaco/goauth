@@ -29,3 +29,12 @@ func main() {
 }
 
 ```
+Sample config (uses viper to parse) config/config.yml:
+
+```
+name: 'api'
+environment: 'local'
+listen: "0.0.0.0:80"
+redis: "redis://redis:6379/0"
+redis_max_conn: 30
+```
