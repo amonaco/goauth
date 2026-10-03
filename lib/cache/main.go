@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"errors"
+
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/amonaco/goauth/lib/config"
@@ -8,7 +10,7 @@ import (
 
 var pool *redis.Pool
 
-// Start initializes the connections to redis
+// Start initializes the connections to Redis.
 func Start() {
 	conf := config.Get()
 
@@ -17,40 +19,62 @@ func Start() {
 		if err != nil {
 			return nil, err
 		}
-
-		return c, err
+		return c, nil
 	}, conf.RedisMaxConn)
 }
 
-// Close closes the connections to redis
+// Close closes the connections to Redis.
 func Close() {
+	if pool == nil {
+		return
+	}
 	pool.Close()
+	pool = nil
 }
 
-// Get retreives the value of a key from redis
+// Get retrieves a value from Redis.
 func Get(key string) (string, error) {
+	if pool == nil {
+		return "", errors.New("cache: redis pool not initialized")
+	}
+
 	conn := pool.Get()
+	defer conn.Close()
 	return redis.String(conn.Do("GET", key))
 }
 
-// Set sets the value of a key in redis with a time to live in seconds
+// Set stores a value in Redis with a TTL in seconds.
 func Set(key, value string, ttl int) error {
+	if pool == nil {
+		return errors.New("cache: redis pool not initialized")
+	}
+
 	conn := pool.Get()
+	defer conn.Close()
 	_, err := conn.Do("SET", key, value, "EX", ttl)
 	return err
 }
 
-// Del deletes a key from redis store
+// Del deletes a key from Redis.
 func Del(key string) error {
+	if pool == nil {
+		return errors.New("cache: redis pool not initialized")
+	}
+
 	conn := pool.Get()
+	defer conn.Close()
 	_, err := conn.Do("DEL", key)
 	return err
 }
 
-// Gets and deletes a key in single transaction
+// GetDel gets and deletes a key in a single transaction.
 func GetDel(key string) (string, error) {
-	var res string
+	if pool == nil {
+		return "", errors.New("cache: redis pool not initialized")
+	}
+
 	conn := pool.Get()
+	defer conn.Close()
 	conn.Send("MULTI")
 	conn.Send("GET", key)
 	conn.Send("DEL", key)
@@ -60,6 +84,7 @@ func GetDel(key string) (string, error) {
 		return "", err
 	}
 
+	var res string
 	_, err = redis.Scan(reply, &res)
 	if err != nil {
 		return "", err
@@ -68,24 +93,30 @@ func GetDel(key string) (string, error) {
 	return res, nil
 }
 
-// Pushes to a list and sets its expiry (can't be done in a single operation)
+// PushExpire pushes a value to a list and sets the TTL.
 func PushExpire(key string, value string, ttl int) error {
+	if pool == nil {
+		return errors.New("cache: redis pool not initialized")
+	}
+
 	conn := pool.Get()
+	defer conn.Close()
 	conn.Send("MULTI")
 	conn.Send("LPUSH", key, value)
 	conn.Send("EXPIRE", key, ttl)
 
 	_, err := redis.Values(conn.Do("EXEC"))
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
-// Deletes an item from list
+// LRem deletes an item from a list.
 func LRem(key string, token string) error {
+	if pool == nil {
+		return errors.New("cache: redis pool not initialized")
+	}
+
 	conn := pool.Get()
+	defer conn.Close()
 	_, err := conn.Do("LREM", key, "0", token)
 	return err
 }

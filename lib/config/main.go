@@ -6,45 +6,57 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Config represents the configuration data
+// Config represents the configuration data.
 type Config struct {
-	Name   string `mapstructure:"name"`
-	Listen string `mapstructure:"listen"`
-	Key    string `mapstructure:"key"`
-	Seed   string `mapstructure:"seed"`
+	Name         string `mapstructure:"name"`
+	Environment  string `mapstructure:"environment"`
+	Listen       string `mapstructure:"listen"`
+	Redis        string `mapstructure:"redis"`
+	RedisMaxConn int    `mapstructure:"redis_max_conn"`
+	Key          string `mapstructure:"key"`
+	Seed         string `mapstructure:"seed"`
 }
 
-// Init conf with defaults
+// Init conf with defaults.
 var _conf = Config{
-	Listen: "0.0.0.0:80",
+	Listen:       "0.0.0.0:80",
+	RedisMaxConn: 30,
 }
 
-// Get returns the global config
+// Get returns the global config.
 func Get() Config {
 	return _conf
 }
 
-// Read reads the global config from a json file
+// Read reads config from an explicit file path or from the default locations.
 func Read(filePath string) {
-
-	// Viper setup
-	viper.AddConfigPath("./config/")
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-
-	// Bind config to env vars
-	viper.BindEnv("name", "APP_NAME")
-	viper.BindEnv("listen", "APP_LISTEN")
-	viper.BindEnv("postgres", "POSTGRES")
-
-	// Reads the config
-	err := viper.ReadInConfig()
-	if err != nil {
-		log.Fatal("Fatal error config file\n", err)
+	if filePath != "" {
+		viper.SetConfigFile(filePath)
+	} else {
+		viper.AddConfigPath(".")
+		viper.AddConfigPath("./config")
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
 	}
 
-	err = viper.Unmarshal(&_conf)
-	if err != nil {
-		log.Fatal("Cound not unmarshall config\n", err)
+	viper.SetDefault("listen", "0.0.0.0:80")
+	viper.SetDefault("redis_max_conn", 30)
+
+	_ = viper.BindEnv("name", "APP_NAME")
+	_ = viper.BindEnv("environment", "APP_ENVIRONMENT")
+	_ = viper.BindEnv("listen", "APP_LISTEN")
+	_ = viper.BindEnv("redis", "REDIS_URL")
+	_ = viper.BindEnv("redis_max_conn", "REDIS_MAX_CONN")
+
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("config: using defaults because no config file was found: %v", err)
+		if err := viper.Unmarshal(&_conf); err != nil {
+			log.Printf("config: failed to unmarshal defaults: %v", err)
+		}
+		return
+	}
+
+	if err := viper.Unmarshal(&_conf); err != nil {
+		log.Fatal("config: could not unmarshal config\n", err)
 	}
 }
