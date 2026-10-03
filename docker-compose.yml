@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: goauth-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - goauth-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: goauth-postgres
+    environment:
+      POSTGRES_USER: goauth_user
+      POSTGRES_PASSWORD: goauth_password
+      POSTGRES_DB: goauth_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./scripts/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goauth_user -d goauth_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - goauth-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  goauth-network:
+    driver: bridge

@@ -1,0 +1,17 @@
+name: 'goauth-api'
+environment: 'local'
+listen: '0.0.0.0:8080'
+
+# Redis configuration
+redis: 'redis://redis:6379/0'
+redis_max_conn: 30
+
+# JWT configuration
+jwt_secret: 'dev-secret-change-in-production-change-in-production-key'
+session_ttl: 86400
+
+# Cookie security (set to true in production with HTTPS)
+cookie_secure: false
+
+# Database configuration (optional, for future use)
+# postgres: 'postgres://goauth_user:goauth_password@postgres:5432/goauth_db'
