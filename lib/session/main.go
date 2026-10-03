@@ -12,7 +12,7 @@ import (
 const sessionTTL = 86400
 const TokenExpiry = 86400
 
-// Session holds permission and identity informations about a user
+// Session holds permission and identity information about a user.
 type Session struct {
 	ID        string
 	Roles     []string
@@ -20,75 +20,65 @@ type Session struct {
 	CompanyID uint32
 }
 
-// ContextKey is used as the key type to store
-// a session in the request context
+// ContextKey is used as the key type to store a session in the request context.
 type ContextKey string
 
-// Token returns a session token used to retreive the session from redis
+// Token returns a session token used to retrieve the session from Redis.
 func (s Session) Token() string {
-
-	// The session ID follows the format:
-	// user_id:company_id:session
 	return fmt.Sprintf("%v:%v:%v", s.UserID, s.CompanyID, s.ID)
 }
 
-// GetSession fetches a session by token from redis
+// GetSession fetches a session by token from Redis.
 func GetSession(token string) (Session, error) {
-	var session Session
+	var sessionValue Session
 
 	data, err := cache.Get(makeSessionKey(token))
 	if err != nil {
-		return session, err
+		return sessionValue, err
 	}
 
-	err = json.Unmarshal([]byte(data), &session)
-	if err != nil {
-		return session, err
+	if err := json.Unmarshal([]byte(data), &sessionValue); err != nil {
+		return sessionValue, err
 	}
 
-	return session, nil
+	return sessionValue, nil
 }
 
-// CreateSession creates a new session and stores it in redis
+// CreateSession creates a new session and stores it in Redis.
 func CreateSession(userID uint32, companyID uint32, roles []string) (Session, error) {
 	id, err := generateSessionID()
 	if err != nil {
-		// Something is very wrong: OS could not generate a random number
 		return Session{}, err
 	}
 
-	session := Session{
+	sessionValue := Session{
 		ID:        id,
 		UserID:    userID,
 		Roles:     roles,
 		CompanyID: companyID,
 	}
 
-	data, err := json.Marshal(session)
+	data, err := json.Marshal(sessionValue)
 	if err != nil {
 		return Session{}, err
 	}
 
-	// Store session in redis with a TTL of 24 hours
-	err = cache.Set(makeSessionKey(session.ID), string(data), sessionTTL)
-	if err != nil {
+	key := makeSessionKey(sessionValue.Token())
+	if err := cache.Set(key, string(data), sessionTTL); err != nil {
 		return Session{}, err
 	}
 
-	// Add user tokens to a list to allow easy expiring sessions
-	err = cache.PushExpire(makeUserKey(userID, companyID), string(id), sessionTTL)
-	if err != nil {
+	if err := cache.PushExpire(makeUserKey(userID, companyID), sessionValue.Token(), sessionTTL); err != nil {
 		return Session{}, err
 	}
 
-	return session, nil
+	return sessionValue, nil
 }
 
-// DeleteSession removes a session from redis
+// DeleteSession removes a session from Redis.
 func DeleteSession(token string) error {
-	var session Session
+	var sessionValue Session
 
-	// GetDel the session and data
 	data, err := cache.GetDel(makeSessionKey(token))
 	if err != nil {
 		return err
@@ -98,14 +88,11 @@ func DeleteSession(token string) error {
 		return nil
 	}
 
-	err = json.Unmarshal([]byte(data), &session)
-	if err != nil {
+	if err := json.Unmarshal([]byte(data), &sessionValue); err != nil {
 		return err
 	}
 
-	// Remove this specific token from user session list
-	err = cache.LRem(makeUserKey(session.UserID, session.CompanyID), token)
-	if err != nil {
+	if err := cache.LRem(makeUserKey(sessionValue.UserID, sessionValue.CompanyID), token); err != nil {
 		return err
 	}
 
@@ -122,19 +109,17 @@ func makeSessionKey(token string) string {
 
 func generateSessionID() (string, error) {
 	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// Generates a token used for signup and password recovery
+// GenerateToken creates a cryptographically random token for signup and password recovery flows.
 func GenerateToken() (string, error) {
 	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 

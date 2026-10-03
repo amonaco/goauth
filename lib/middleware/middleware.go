@@ -1,40 +1,35 @@
-package auth
+package middleware
 
 import (
 	"context"
 	"log"
 	"net/http"
 
-    "github.com/amonaco/goauth/lib/auth"
-    "github.com/amonaco/goauth/lib/session"
+	"github.com/amonaco/goauth/lib/auth"
+	"github.com/amonaco/goauth/lib/session"
 )
 
-// Main middleware function
+// Middleware enforces a valid session cookie or auth-token header.
 func Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 		var token string
 
-		// Try cookie auth first
 		cookie, err := r.Cookie(auth.TokenCookieName)
-		if err != nil {
-			log.Println("Session cookie not present! Fallback to auth-token")
-
-			// Try auth-token header
+		if err == nil {
+			token = cookie.Value
+		} else {
 			token = r.Header.Get("auth-token")
 			if token == "" {
-				http.Error(w, http.StatusText(401), 401)
+				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 				return
 			}
-		} else {
-			token = cookie.Value
 		}
 
-		// Check session token exists
 		sess, err := session.GetSession(token)
 		if err != nil {
-			log.Println(err)
-			http.Error(w, http.StatusText(401), 401)
+			log.Println("auth middleware: invalid session:", err)
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
