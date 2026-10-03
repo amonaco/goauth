@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/amonaco/goauth/lib/auth"
 	"github.com/amonaco/goauth/lib/session"
@@ -15,18 +16,27 @@ func Middleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		var token string
 
-		cookie, err := r.Cookie(auth.TokenCookieName)
-		if err == nil {
-			token = cookie.Value
-		} else {
-			token = r.Header.Get("auth-token")
-			if token == "" {
-				http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-				return
+		if authHeader := r.Header.Get("Authorization"); strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+			token = strings.TrimSpace(authHeader[7:])
+		}
+
+		if token == "" {
+			cookie, err := r.Cookie(auth.TokenCookieName)
+			if err == nil {
+				token = cookie.Value
 			}
 		}
 
-		sess, err := session.GetSession(token)
+		if token == "" {
+			token = r.Header.Get("auth-token")
+		}
+
+		if token == "" {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		sess, err := auth.ResolveSession(token)
 		if err != nil {
 			log.Println("auth middleware: invalid session:", err)
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
